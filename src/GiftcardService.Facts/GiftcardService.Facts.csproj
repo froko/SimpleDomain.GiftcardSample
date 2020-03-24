@@ -24,4 +24,8 @@
     <ProjectReference Include="..\GiftcardService\GiftcardService.csproj" />
   </ItemGroup>
 
+  <PropertyGroup>
+    <RootNamespace>GiftcardService</RootNamespace>
+  </PropertyGroup>
+
 </Project>
