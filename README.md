@@ -306,3 +306,7 @@ var eventStore = executionContext.EventStore;
 Have a look at the `BaseFeatures` class in the `GiftcardService.Scenarios` project to see the CompositionRoot in action.
 
 By wiring all assets together, we can write true end-to-end tests by sending commands and asserting the changes in the read store. Have a look at the `GiftcardFeatures` class in the `GiftcardService.Scenarios` project to see how clean and readable such tests can be expressed.
+
+## References
+
+- [SimpleDomain](https://github.com/froko/SimpleDomain)
