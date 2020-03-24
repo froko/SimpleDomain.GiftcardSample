@@ -92,3 +92,80 @@ type GiftcardRedeemed = { CardId: Guid; Amount : decimal }
 type GiftcardLoaded = { CardId: Guid; Amount : decimal }
     with interface IEvent
 ```
+
+## Giftcard
+
+The Giftcard is implemented as an event-sourced aggregate root. The base class is defined in the SimpleDomain framework and takes care of the following responsibilities:
+
+- Mapping of event types to their corresponding apply methods
+- Provisioning of a public Id property (`Guid`)
+- Provisioning of an incrementing numeric Version property
+- Recreation of an instance from an event history (a series of events)
+- Ability to create a snapshot (needs to be overridden, if used)
+- Ability to load from a snapshot (needs to be overridden, if used)
+
+Here's the implementation. The checks for invariants are ommited for brevity:
+
+```csharp
+public class Giftcard : StaticEventSourcedAggregateRoot
+    {
+        private decimal balance;
+        private DateTime validUntil;
+        private bool isActivated;
+
+        private Giftcard()
+        {
+            this.RegisterTransition<GiftcardCreated>(this.Apply);
+            this.RegisterTransition<GiftcardActivated>(this.Apply);
+            this.RegisterTransition<GiftcardRedeemed>(this.Apply);
+            this.RegisterTransition<GiftcardLoaded>(this.Apply);
+        }
+
+        public Giftcard(int cardNumber, decimal initialBalance, DateTime validUntil) : this()
+        {
+            // Check invariants
+            this.ApplyEvent(new GiftcardCreated(Guid.NewGuid(), cardNumber, initialBalance, validUntil));
+        }
+
+        public void Activate()
+        {
+            // Check invariants
+            this.ApplyEvent(new GiftcardActivated(this.Id));
+        }
+
+        public void Redeem(decimal amount)
+        {
+            // Check invariants
+            this.ApplyEvent(new GiftcardRedeemed(this.Id, amount));
+        }
+
+        public void Load(decimal amount)
+        {
+            // Check invariants
+            this.ApplyEvent(new GiftcardLoaded(this.Id, amount));
+        }
+
+        private void Apply(GiftcardCreated @event)
+        {
+            this.Id = @event.CardId;
+            this.balance = @event.InitialBalance;
+            this.validUntil = @event.ValidUntil;
+            this.isActivated = false;
+        }
+
+        private void Apply(GiftcardActivated @event)
+        {
+            this.isActivated = true;
+        }
+
+        private void Apply(GiftcardRedeemed @event)
+        {
+            this.balance -= @event.Amount;
+        }
+
+        private void Apply(GiftcardLoaded @event)
+        {
+            this.balance += @event.Amount;
+        }
+    }
+```
