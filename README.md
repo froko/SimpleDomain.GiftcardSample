@@ -184,3 +184,125 @@ In our GiftcardSample we use an InMemory ReadStore with the following projection
   All transactions of all Giftcards
 
 Have a look at the `GiftcardService.ReadStore` namespace for more information.
+
+## Bounded Context
+
+The Giftcard aggregate root and the ReadStore build a single bounded context. The SimpleDomain framework provides an interface to express this context in class. Its main responsibility is to map all message types to their corresponding handlers:
+
+```csharp
+public class GiftcardContext : IBoundedContext
+{
+    private readonly ICardNumberQuery cardNumberQuery;
+    private readonly InMemoryCardNumberEventHandler cardNumberEventHandler;
+    private readonly InMemoryGiftcardOverviewEventHandler giftcardOverviewEventHandler;
+    private readonly InMemoryGiftcardTransactionEventHandler giftcardTransactionEventHandler;
+
+    public GiftcardContext(IReadStore readStore)
+    {
+        this.cardNumberQuery = new InMemoryCardNumberQuery(readStore);
+        this.cardNumberEventHandler = new InMemoryCardNumberEventHandler(readStore);
+        this.giftcardOverviewEventHandler = new InMemoryGiftcardOverviewEventHandler(readStore);
+        this.giftcardTransactionEventHandler = new InMemoryGiftcardTransactionEventHandler(readStore);
+    }
+
+    public string Name => "Giftcards";
+
+    private IEventSourcedRepository Repository { get; set; }
+
+    public void Configure(
+        ISubscribeMessageHandlers configuration,
+        IFeatureSelector featureSelector,
+        IDeliverMessages bus,
+        IEventSourcedRepository repository)
+    {
+        this.Repository = repository;
+        configuration.SubscribeCommandHandler<CreateGiftcard>(this.HandleAsync);
+        configuration.SubscribeCommandHandler<ActivateGiftcard>(this.HandleAsync);
+        configuration.SubscribeCommandHandler<RedeemGiftcard>(this.HandleAsync);
+        configuration.SubscribeCommandHandler<LoadGiftcard>(this.HandleAsync);
+        configuration.SubscribeEventHandler<GiftcardCreated>(this.cardNumberEventHandler.HandleAsync);
+        configuration.SubscribeEventHandler<GiftcardCreated>(this.giftcardOverviewEventHandler.HandleAsync);
+        configuration.SubscribeEventHandler<GiftcardActivated>(this.giftcardOverviewEventHandler.HandleAsync);
+        configuration.SubscribeEventHandler<GiftcardRedeemed>(this.giftcardOverviewEventHandler.HandleAsync);
+        configuration.SubscribeEventHandler<GiftcardLoaded>(this.giftcardOverviewEventHandler.HandleAsync);
+        configuration.SubscribeEventHandler<GiftcardCreated>(this.giftcardTransactionEventHandler.HandleAsync);
+        configuration.SubscribeEventHandler<GiftcardActivated>(this.giftcardTransactionEventHandler.HandleAsync);
+        configuration.SubscribeEventHandler<GiftcardRedeemed>(this.giftcardTransactionEventHandler.HandleAsync);
+        configuration.SubscribeEventHandler<GiftcardLoaded>(this.giftcardTransactionEventHandler.HandleAsync);
+    }
+
+    private async Task HandleAsync(CreateGiftcard command)
+    {
+        if (this.cardNumberQuery.IsAlreadyInUse(command.CardNumber))
+        {
+            throw new GiftcardException($"A giftcard with number {command.CardNumber} already exists.");
+        }
+
+        var giftcard = new Giftcard(
+            command.CardNumber,
+            command.InitialBalance,
+            command.ValidUntil);
+
+        await this.Repository.SaveAsync(giftcard).ConfigureAwait(false);
+    }
+
+    private async Task HandleAsync(ActivateGiftcard command)
+    {
+        var giftcard = await this.Repository
+            .GetByIdAsync<Giftcard>(command.CardId)
+            .ConfigureAwait(false);
+
+        giftcard.Activate();
+
+        await this.Repository.SaveAsync(giftcard).ConfigureAwait(false);
+    }
+
+    private async Task HandleAsync(RedeemGiftcard command)
+    {
+        var giftcard = await this.Repository
+            .GetByIdAsync<Giftcard>(command.CardId)
+            .ConfigureAwait(false);
+
+        giftcard.Redeem(command.Amount);
+
+        await this.Repository.SaveAsync(giftcard).ConfigureAwait(false);
+    }
+
+    private async Task HandleAsync(LoadGiftcard command)
+    {
+        var giftcard = await this.Repository
+            .GetByIdAsync<Giftcard>(command.CardId)
+            .ConfigureAwait(false);
+
+        giftcard.Load(command.Amount);
+
+        await this.Repository.SaveAsync(giftcard).ConfigureAwait(false);
+    }
+}
+```
+
+## CompositionRoot
+
+The composition root combines the user code, expressed as bounded context, with the framework capabilities of SimpleDomain and does all the required wirings behind the scenes. A composition root can be fluently configured like this:
+
+```csharp
+var readStore = new InMemoryReadStore();
+var compositionRoot = new CompositionRoot();
+
+compositionRoot.Register(new GiftcardContext(readStore));
+compositionRoot.ConfigureJitney()
+    .DefineLocalEndpointAddress("gc.sample")
+    .MapContracts(typeof(CreateGiftcard).Assembly).ToMe();
+```
+
+By starting the composition root, we get a disposable execution context, which gives us acces to the internal message bus and the EventStore:
+
+```csharp
+var executionContext = compositionRoot.Start();
+var bus = executionContext.Bus;
+var eventStore = executionContext.EventStore;
+```
+
+Have a look at the `BaseFeatures` class in the `GiftcardService.Scenarios` project to see the CompositionRoot in action.
+
+By wiring all assets together, we can write true end-to-end tests by sending commands and asserting the changes in the read store. Have a look at the `GiftcardFeatures` class in the `GiftcardService.Scenarios` project to see how clean and readable such tests can be expressed.
