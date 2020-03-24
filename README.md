@@ -169,3 +169,18 @@ public class Giftcard : StaticEventSourcedAggregateRoot
         }
     }
 ```
+
+## ReadStore
+
+An event-sourced aggregate root needs an EventStore to save its emmitted events and to be recreated from. In our GiftcardSample we use the built-in InMemory store of the SimpleDomain framework. Since an EventStore is highly optimized for the command side of a CQRS based solution, it lacks of the performance we wish to have on the read side. Therefore, we need a ReadStore which is able to provide various projections of the same data base in a highly efficient manner.
+
+In our GiftcardSample we use an InMemory ReadStore with the following projections:
+
+- **CardNumbers**
+  A single list of card numbers which is used to programatically maintain the uniqueness of these numbers
+- **GiftcardOverviews**
+  A single record for each Giftcard providing the actual state
+- **GiftcardTransactions**
+  All transactions of all Giftcards
+
+Have a look at the `GiftcardService.ReadStore` namespace for more information.
