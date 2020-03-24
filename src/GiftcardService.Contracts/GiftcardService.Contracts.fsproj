@@ -5,6 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Events.fs" />
+    <Compile Include="Commands.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="SimpleDomain" Version="3.0.0" />
   </ItemGroup>
 

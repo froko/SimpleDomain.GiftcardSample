@@ -63,3 +63,32 @@ We maintain a single code analysis ruleset in the root of the `src` folder. The 
   <CodeAnalysisRuleSet>..\GiftcardSample.ruleset</CodeAnalysisRuleSet>
 </PropertyGroup>
 ```
+
+## Message Contracts
+
+Although our GiftcardSample is a single-proces, single-BoundedContext project, we do want to keep our message contracts (commands & events) in a seperate assembly. For defining messages, the F# record types are a perfect match since they can express a single message in just one or two lines of code:
+
+### Commands
+
+```fsharp
+type CreateGiftcard = { CardNumber : int; InitialBalance : decimal; ValidUntil : DateTime } with interface ICommand
+type ActivateGiftcard = { CardId : Guid; } with interface ICommand
+type RedeemGiftcard = { CardId : Guid; Amount : decimal } with interface ICommand
+type LoadGiftcard = { CardId : Guid; Amount : decimal } with interface ICommand
+```
+
+### Events
+
+```fsharp
+type GiftcardCreated = { CardId : Guid; CardNumber : int; InitialBalance : decimal; ValidUntil : DateTime }
+    with interface IEvent
+
+type GiftcardActivated = { CardId: Guid }
+    with interface IEvent
+
+type GiftcardRedeemed = { CardId: Guid; Amount : decimal }
+    with interface IEvent
+
+type GiftcardLoaded = { CardId: Guid; Amount : decimal }
+    with interface IEvent
+```
