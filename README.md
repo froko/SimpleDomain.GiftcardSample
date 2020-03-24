@@ -53,3 +53,13 @@ dotnet add package FluentAssertions
 dotnet add package FakeItEasy
 dotnet add package XBehave
 ```
+
+## Code Analysis Ruleset
+
+We maintain a single code analysis ruleset in the root of the `src` folder. The ruleset is referenced in the C# project files:
+
+```xml
+<PropertyGroup>
+  <CodeAnalysisRuleSet>..\GiftcardSample.ruleset</CodeAnalysisRuleSet>
+</PropertyGroup>
+```

@@ -27,6 +27,7 @@
 
   <PropertyGroup>
     <RootNamespace>GiftcardService</RootNamespace>
+    <CodeAnalysisRuleSet>..\GiftcardSample.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
 
 </Project>
